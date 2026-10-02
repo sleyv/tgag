@@ -12,9 +12,6 @@ fi
 install -m 755 "$here/tgag.py" "$dest"
 echo "installed $dest"
 
-# link the legacy name too, some agents call it tg.py
-[ -e /usr/local/bin/tg.py ] || ln -s "$dest" /usr/local/bin/tg.py
-
 if [ ! -s "$HOME/.tg_token" ] && [ -z "$TG_TOKEN" ]; then
     cat <<'EOF'
 

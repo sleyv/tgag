@@ -111,7 +111,6 @@ fit, none if they do not.
 | file | purpose |
 |---|---|
 | `tgag.py` | the program |
-| `tg.py` | same file, alias for anyone who expects the old name |
 | `install.sh` | one-shot install + credentials check |
 | `systemd/tgag-watch.service` | run the daemon at boot |
 
