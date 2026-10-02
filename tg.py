@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 #
-#  ╭─ Paste ─────────────────────────────╮
-#  │   curl -fsSL https://sley.nl/tgag   │
-#  ╰─────────────────────────────────────╯
-#
-#  ╭─ Download ──────────────────────────────────────────╮
-#  │   curl -fsSL https://sley.nl/tgag -o /tmp/tgag.py   │
-#  ╰─────────────────────────────────────────────────────╯
+#  Download:  curl -fsSL $URL -o tgag.py        # see FETCH_URL below
 #
 # MIT licensed. Share freely.
 #
@@ -34,7 +28,7 @@
 #
 """tgag.py — terminal Telegram client + agent mode. Standard library only.
 
-  curl -fsSL https://sley.nl/tgag -o tgag.py     # fetch
+  curl -fsSL "$FETCH_URL" -o tgag.py             # fetch
   python3 tgag.py agent                           # read the agent guide
 
   send TEXT.. [--force] | photo F [cap] | video F [cap] | voice F [cap]
@@ -60,6 +54,7 @@ import time
 import urllib.parse
 import urllib.request
 
+FETCH_URL = "https://sley.nl/tgag"  # where this file is published
 MANTRA = "PGNC"  # Parallel, Go, Not-done, Check — reason only, never sent
 LIM = 20 * 1024 * 1024  # file limit
 API_TIMEOUT = 20  # seconds for a normal call; getUpdates passes its own

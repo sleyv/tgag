@@ -7,8 +7,14 @@ Telegram, reports progress, asks questions, and never stops on its own.
 Single file. Standard library only. No dependencies, no build step.
 
 ```bash
-curl -fsSL https://sley.nl/tgag -o tgag.py
+git clone <this-repo> && cd tgag
 python3 tgag.py agent        # read the operating manual
+```
+
+Or grab the single file:
+
+```bash
+curl -fsSL https://sley.nl/tgag -o tgag.py
 ```
 
 ---
@@ -108,6 +114,9 @@ fit, none if they do not.
 | `tg.py` | same file, alias for anyone who expects the old name |
 | `install.sh` | one-shot install + credentials check |
 | `systemd/tgag-watch.service` | run the daemon at boot |
+
+Nothing here is machine-specific: no local paths, no usernames, no tokens.
+`FETCH_URL` at the top of `tgag.py` is the only configurable string.
 
 ## Reliability notes
 
