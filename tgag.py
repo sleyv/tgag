@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 #
-#  Download:  curl -fsSL $URL -o tgag.py        # see FETCH_URL below
+#  ╭─ Paste ─────────────────────────────╮
+#  │   curl -fsSL https://sley.nl/tgag   │
+#  ╰─────────────────────────────────────╯
+#
+#  ╭─ Download ──────────────────────────────────────────╮
+#  │   curl -fsSL https://sley.nl/tgag -o /tmp/tgag.py   │
+#  ╰─────────────────────────────────────────────────────╯
 #
 # MIT licensed. Share freely.
 #
@@ -28,7 +34,7 @@
 #
 """tgag.py — terminal Telegram client + agent mode. Standard library only.
 
-  curl -fsSL "$FETCH_URL" -o tgag.py             # fetch
+  curl -fsSL https://sley.nl/tgag -o tgag.py     # fetch
   python3 tgag.py agent                           # read the agent guide
 
   send TEXT.. [--force] | photo F [cap] | video F [cap] | voice F [cap]
@@ -54,13 +60,12 @@ import time
 import urllib.parse
 import urllib.request
 
-FETCH_URL = "https://sley.nl/tgag"  # where this file is published
 MANTRA = "PGNC"  # Parallel, Go, Not-done, Check — reason only, never sent
 LIM = 20 * 1024 * 1024  # file limit
 API_TIMEOUT = 20  # seconds for a normal call; getUpdates passes its own
 DEDUP_SECONDS = 300  # identical send inside this window is skipped
 CHUNK = 4000  # message text limit (TG allows 4096)
-STATE = os.path.expanduser("~/.tg_offset")
+STATE = os.path.expanduser("~/.tg_offset")  # see cred_file() for the lookup
 DLDIR = "/tmp/tg_downloads"
 MAILBOX = os.path.expanduser("~/.tg_mail")
 WATCH_PID = os.path.expanduser("~/.tg_watch.pid")
@@ -77,8 +82,9 @@ The last thing you do is NEVER a message. The last thing you do is always
 `tg wait`. Text is not a way to finish. If your turn ended with prose, you
 broke the rule. Prose is only ever the thing BEFORE the tool call:
 
-    tg send "short status"
-    tg wait --timeout 0          <- the turn ends HERE, on this call
+    tg send "short status: what happened, what you need next"
+    tg wait                      <- posts the blocked notice, then waits
+    # --timeout 0 waits forever; the turn ends on that tool call
 
 Ending a turn with a paragraph is the failure mode this mode exists to stop.
 You are never done. There is no state you reach where the answer is "I have
@@ -122,11 +128,20 @@ COMMANDS
   tg me                 verify the token
   tg watch              background daemon (see below)
 
-BLOCKING MESSAGES end with a signed footer, which the tool appends:
+BLOCKING - the user must be told from Telegram, not from a log:
+  tg send "<status: done, what is next, or what you need>"
+  tg wait            <- the tool posts the blocked notice itself, then blocks
+When you block, say in the status line what happened and what you need, so
+the notice is not the only thing the user reads. "task done, need the next
+one" is a perfectly good last message before you wait.
+
+`tg wait` sends this to Telegram on the last line of its notice:
     [ BLOCKED - AWAITING USER REPLY - DO NOT PROCEED ]
 For a background job you will resume yourself, say so instead:
     [ BLOCKED - AWAITING USER REPLY - resuming automatically, no reply needed ]
 Never put that footer on a normal progress message: it means "I am stopped".
+If the notice cannot be delivered the tool says so on stderr - that is a bug,
+say it, do not stay silently blocked.
 
 JOBS: setsid/nohup the job, log to a file, then `tg wait` while it runs.
 Never sleep in fixed chunks to look busy.
@@ -168,13 +183,30 @@ def first_line(p):
         return ""
 
 
+def cred_file(name):
+    """Find a credential file even when $HOME points elsewhere (root shells,
+    services, cron). Checks $HOME first, then the owner of this script."""
+    home = os.path.expanduser("~")
+    cands = [os.path.join(home, name)]
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        cands += [os.path.join(here, name),
+                  os.path.join(os.path.dirname(here), name)]
+    except NameError:
+        pass
+    for c in cands:
+        if os.path.isfile(c):
+            return c
+    return os.path.join(home, name)
+
+
 def creds(args):
     """Flags win, then env, then the files. Token is never printed."""
     return (
         args.token or os.environ.get("TG_TOKEN", "")
-        or first_line(os.path.expanduser("~/.tg_token")),
+        or first_line(cred_file(".tg_token")),
         args.chat or os.environ.get("TG_CHAT", "")
-        or first_line(os.path.expanduser("~/.tg_chat")),
+        or first_line(cred_file(".tg_chat")),
     )
 
 
@@ -696,10 +728,26 @@ def do_poll(tok, chat, timeout, dldir, quiet=False, auto_seen=True):
         print(f"--- offset={st['offset']}")
 
 
-def do_wait(tok, chat, timeout, dldir, async_=False, auto_seen=True):
-    """Block until the user replies. Replaces 'sleep N'. --timeout 0 = forever."""
+def do_wait(tok, chat, timeout, dldir, async_=False, auto_seen=True, notify=True):
+    """Block until the user replies. Replaces 'sleep N'. --timeout 0 = forever.
+
+    The blocked notice goes to TELEGRAM, not just stdout: the agent is stuck
+    and the user has to know it from their phone, not from a log. --no-notify
+    suppresses the message (stdout still says it)."""
     print(f"{BLOCKED_NOTE} (ctrl-c to stop)", flush=True)
     print(BLOCKED_ASYNC if async_ else BLOCKED_TAG, flush=True)
+    if notify:
+        note = BLOCKED_ASYNC if async_ else BLOCKED_NOTE
+        tag = BLOCKED_ASYNC if async_ else BLOCKED_TAG
+        if not tok or not chat:
+            print("blocked notice NOT sent: no token/chat (set TG_TOKEN/TG_CHAT "
+                  "or provide ~/.tg_token and ~/.tg_chat)", file=sys.stderr, flush=True)
+        else:
+            try:
+                do_send(tok, chat, f"{note}\n{tag}", force=True)
+            except BaseException as e:  # api() exits; never die, but shout
+                print(f"blocked notice NOT delivered: {type(e).__name__}: {e}",
+                      file=sys.stderr, flush=True)
     deadline = time.time() + timeout if timeout > 0 else None
     while True:
         if deadline is not None and time.time() >= deadline:
@@ -782,6 +830,8 @@ def main():
                    help="give up after N sec; 0 = wait forever (default)")
     w.add_argument("--no-auto-seen", dest="auto_seen", action="store_false",
                    help="do not mark messages read (👀 stays as the only mark)")
+    w.add_argument("--no-notify", dest="notify", action="store_false",
+                   help="do not send the blocked notice to Telegram")
     w.add_argument("--background", action="store_true",
                    help="a job is still running: I will resume on my own, no reply needed")
     for name, h in (
@@ -843,7 +893,7 @@ def main():
     elif a.cmd == "ask":
         do_ask(tok, chat, a.question, a.wait, a.auto_seen)
     elif a.cmd == "wait":
-        do_wait(tok, chat, a.timeout, DLDIR, a.background, a.auto_seen)
+        do_wait(tok, chat, a.timeout, DLDIR, a.background, a.auto_seen, a.notify)
     elif a.cmd == "last":
         last = state().get("last")
         print(

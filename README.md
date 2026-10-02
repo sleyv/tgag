@@ -78,6 +78,10 @@ and both get slow.
 
 ## Configuration
 
+Credential files are looked up in `$HOME` first, then next to the script and
+one level up, so it works from root shells and services where `$HOME` points
+somewhere else.
+
 Priority order, first hit wins:
 
 | what | flags | env | file |
@@ -129,6 +133,9 @@ Nothing here is machine-specific: no local paths, no usernames, no tokens.
   request logs and continues.
 - Only emoji Telegram accepts as reactions work. Verified against the API;
   `📥 ⏰ 🕐 📊 ⭐` are rejected, `👀 🫡 👍 🤝 👌` are not.
+- `tg wait` posts the "I am blocked, reply needed" notice to Telegram, not
+  only to stdout. If it cannot, it says so on stderr instead of blocking
+  silently.
 
 ## License
 
