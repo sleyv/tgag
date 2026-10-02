@@ -1,0 +1,17 @@
+[Unit]
+Description=tgag inbox watcher (keeps the mailbox filled)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/tg watch --interval 5
+Restart=always
+RestartSec=3
+# the token lives in ~/.tg_token; do not expose it in the unit
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:/tmp/tg_watch.log
+StandardError=append:/tmp/tg_watch.log
+
+[Install]
+WantedBy=default.target

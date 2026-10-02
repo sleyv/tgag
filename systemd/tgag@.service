@@ -1,0 +1,12 @@
+# optional: run the watcher as a user service instead of system-wide
+[Unit]
+Description=tgag inbox watcher for %i
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/tg watch --interval 5
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
